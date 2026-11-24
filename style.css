@@ -17,3 +17,7 @@ h1{font-size:28px;font-weight:600;margin:4px 0 18px;letter-spacing:.02em}
 ol{padding-left:20px;color:var(--muted);font-size:15px}
 .err{color:var(--warn)}
 footer{margin-top:28px;color:var(--dim);font-size:13px;text-align:center}
+.gallery{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:18px;margin:6px -18px 14px;padding:4px 18px 10px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.gallery figure{flex:0 0 46%;margin:0;scroll-snap-align:start}
+.gallery img{display:block;width:100%;height:auto;border:1px solid var(--line);clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.gallery figcaption{margin-top:6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center}
