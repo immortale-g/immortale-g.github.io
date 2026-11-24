@@ -28,3 +28,7 @@ main{position:relative}
 .langs button:hover{opacity:.8;filter:none}
 .langs button[aria-pressed="true"]{opacity:1;filter:none;border-color:var(--accent)}
 html[data-lang="en"] .de,html[data-lang="de"] .en{display:none!important}
+.btn .droid{width:20px;height:20px;vertical-align:-4px;margin-right:8px}
+.badge{display:inline-block;padding:1px 7px;border:1px solid var(--ready);color:var(--ready);letter-spacing:.12em}
+.platform{margin:-4px 0 12px;text-align:center;color:var(--muted);font-size:14px}
+.ios-warn{border-color:var(--warn);color:var(--warn)}
