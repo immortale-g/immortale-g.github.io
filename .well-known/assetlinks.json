@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.refinerytracker",
+      "sha256_cert_fingerprints": [
+        "80:6D:88:A0:16:F6:51:57:77:F6:54:6D:B1:30:88:F7:AB:3B:5A:76:36:DB:0D:CE:48:CB:27:73:F3:3F:CD:1D",
+        "1E:22:3B:53:69:EB:6C:9D:B2:75:5C:5B:8E:92:BD:B2:43:D4:4C:34:A4:B0:24:82:EF:A1:C2:9A:A5:00:91:8D"
+      ]
+    }
+  }
+]

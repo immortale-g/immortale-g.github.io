@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refinery Tracker – geteilter Auftrag</title>
+<meta property="og:title" content="Refinery Tracker – geteilter Raffinerieauftrag">
+<meta property="og:description" content="Tippen, um den Auftrag in Refinery Tracker zu öffnen.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <div class="label">Refinery Tracker</div>
+  <h1 id="title">Geteilter Auftrag</h1>
+  <div id="orders"></div>
+  <a id="open" class="btn filled" href="#">In App öffnen</a>
+  <a id="download" class="btn" href="https://github.com/immortale-g/immortale-g.github.io/releases/latest/download/refinery-tracker.apk">App herunterladen (APK)</a>
+  <div class="panel">
+    <div class="station" id="howto-title">App noch nicht installiert?</div>
+    <ol id="howto">
+      <li>APK über den Knopf oben herunterladen und öffnen.</li>
+      <li>Wenn Android fragt: Installation aus dieser Quelle erlauben.</li>
+      <li>Danach diesen Link in WhatsApp noch einmal antippen.</li>
+    </ol>
+  </div>
+  <p class="hint" id="note">Die Auftragsdaten stehen nur im Link und werden nicht an einen Server geschickt.</p>
+  <footer>© 2026 Gionny. Alle Rechte vorbehalten. Fan-Tool, nicht mit den Entwicklern des Spiels verbunden.</footer>
+</main>
+<script>
+(function () {
+  var en = !/^de/i.test(navigator.language || "");
+  var T = en ? {
+    title1: "Shared order", titleN: function (n, t) { return n + " orders from " + t; }, title1From: function (t) { return "Order from " + t; },
+    open: "Open in app", download: "Download app (APK)", howtoTitle: "App not installed yet?",
+    howto: ["Download the APK with the button above and open it.", "If Android asks: allow installs from this source.", "Then tap this link in WhatsApp again."],
+    note: "The order data lives only in this link and is never sent to a server.",
+    ready: "ready", readyAt: "ready ", invalid: "This link does not contain a valid order.", lang: "en"
+  } : {
+    title1: "Geteilter Auftrag", titleN: function (n, t) { return n + " Aufträge von " + t; }, title1From: function (t) { return "Auftrag von " + t; },
+    open: "In App öffnen", download: "App herunterladen (APK)", howtoTitle: "App noch nicht installiert?",
+    howto: ["APK über den Knopf oben herunterladen und öffnen.", "Wenn Android fragt: Installation aus dieser Quelle erlauben.", "Danach diesen Link in WhatsApp noch einmal antippen."],
+    note: "Die Auftragsdaten stehen nur im Link und werden nicht an einen Server geschickt.",
+    ready: "abholbereit", readyAt: "fertig ", invalid: "Dieser Link enthält keinen gültigen Auftrag.", lang: "de"
+  };
+  document.documentElement.lang = T.lang;
+  function $(id) { return document.getElementById(id); }
+  $("title").textContent = T.title1;
+  $("open").textContent = T.open;
+  $("download").textContent = T.download;
+  $("howto-title").textContent = T.howtoTitle;
+  $("note").textContent = T.note;
+  var ol = $("howto"); ol.textContent = "";
+  T.howto.forEach(function (s) { var li = document.createElement("li"); li.textContent = s; ol.appendChild(li); });
+
+  var h = location.hash || "";
+  try { h = decodeURIComponent(h); } catch (e) {}
+  var m = /RT1:[A-Za-z0-9_\-]+/.exec(h);
+  var box = $("orders");
+  function fail() {
+    var p = document.createElement("p"); p.className = "err"; p.textContent = T.invalid; box.appendChild(p);
+    $("open").style.display = "none";
+  }
+  if (!m) { fail(); return; }
+  var code = m[0];
+  // Fallback for phones where the link did not open the app directly.
+  $("open").href = "intent://import?c=" + code + "#Intent;scheme=refinerytracker;package=app.refinerytracker;S.browser_fallback_url=" +
+    encodeURIComponent($("download").href) + ";end";
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  try {
+    var b = code.slice(4).replace(/-/g, "+").replace(/_/g, "/");
+    while (b.length % 4) b += "=";
+    var bin = atob(b), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (typeof DecompressionStream === "undefined") return;
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+    new Response(stream).text().then(function (json) {
+      var d = JSON.parse(json), list = d.a || [], tag = String(d.t || "?");
+      $("title").textContent = list.length > 1 ? T.titleN(list.length, tag) : T.title1From(tag);
+      var nf = new Intl.NumberFormat(T.lang), df = new Intl.DateTimeFormat(T.lang, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      list.slice(0, 20).sort(function (x, y) { return x.e - y.e; }).forEach(function (o) {
+        var mats = (o.m || []), total = 0;
+        mats.forEach(function (x) { total += Number(x[1]) || 0; });
+        var ready = Date.now() >= o.e;
+        var p = el("div", "panel" + (ready ? " ready" : ""));
+        p.appendChild(el("div", "station", String(o.s || "")));
+        p.appendChild(el("div", "mats", mats.map(function (x) { return String(x[0]); }).join(" · ")));
+        var meta = el("div", "meta", nf.format(total) + " cSCU · ");
+        meta.appendChild(el("span", ready ? "ok" : "", ready ? T.ready : T.readyAt + df.format(new Date(o.e))));
+        p.appendChild(meta);
+        if (o.n) p.appendChild(el("div", "hint", String(o.n)));
+        box.appendChild(p);
+      });
+    }).catch(fail);
+  } catch (e) { fail(); }
+})();
+</script>
+</body>
+</html>
