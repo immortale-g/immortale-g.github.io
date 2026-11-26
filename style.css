@@ -34,3 +34,5 @@ html[data-lang="en"] .de,html[data-lang="de"] .en{display:none!important}
 .ios-warn{border-color:var(--warn);color:var(--warn)}
 .verify a{color:var(--accent)}
 .verify code{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all;color:var(--muted)}
+.support p{margin:0 0 4px;color:var(--muted);font-size:15px}
+.support .btn{margin-bottom:0}
