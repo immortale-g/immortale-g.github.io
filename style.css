@@ -32,3 +32,5 @@ html[data-lang="en"] .de,html[data-lang="de"] .en{display:none!important}
 .badge{display:inline-block;padding:1px 7px;border:1px solid var(--ready);color:var(--ready);letter-spacing:.12em}
 .platform{margin:-4px 0 12px;text-align:center;color:var(--muted);font-size:14px}
 .ios-warn{border-color:var(--warn);color:var(--warn)}
+.verify a{color:var(--accent)}
+.verify code{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all;color:var(--muted)}
