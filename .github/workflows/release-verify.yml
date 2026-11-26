@@ -1,0 +1,82 @@
+# Adds the SHA-256 checksum and a VirusTotal scan link to every release.
+#
+# Runs automatically when a release is published. To add the block to an existing release,
+# start it by hand: Actions -> "Release check" -> Run workflow -> enter the tag (e.g. v1.3).
+#
+# With the repository secret VT_API_KEY (free VirusTotal account) the APK is uploaded and
+# scanned, and the result ("0/66") is written to the release. Without the key only the
+# checksum and the link are added; the link works once the file was scanned on virustotal.com.
+name: Release check
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v1.3"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      VT_API_KEY: ${{ secrets.VT_API_KEY }}
+      APK: refinery-tracker.apk
+    steps:
+      - name: Download APK
+        run: gh release download "$TAG" --pattern "$APK" --dir .
+
+      - name: Checksum
+        run: |
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          echo "SHA-256: $SHA"
+
+      - name: Scan with VirusTotal
+        if: env.VT_API_KEY != ''
+        run: |
+          api=https://www.virustotal.com/api/v3
+          auth="x-apikey: $VT_API_KEY"
+          # Already known? Then reuse the existing analysis.
+          code=$(curl -s -o known.json -w '%{http_code}' -H "$auth" "$api/files/$SHA")
+          if [ "$code" != 200 ]; then
+            # Files over 32 MB need a one-time upload URL.
+            url=$(curl -sf -H "$auth" "$api/files/upload_url" | jq -r .data)
+            id=$(curl -sf -H "$auth" -F "file=@$APK" "$url" | jq -r .data.id)
+            echo "Uploaded, analysis $id"
+            for i in $(seq 1 40); do
+              sleep 30
+              status=$(curl -sf -H "$auth" "$api/analyses/$id" | jq -r .data.attributes.status)
+              echo "Status: $status"
+              [ "$status" = completed ] && break
+            done
+            curl -sf -H "$auth" "$api/files/$SHA" -o known.json
+          fi
+          stats=$(jq '.data.attributes.last_analysis_stats' known.json)
+          found=$(echo "$stats" | jq '.malicious + .suspicious')
+          total=$(echo "$stats" | jq '.malicious + .suspicious + .undetected + .harmless')
+          if [ "$total" -gt 0 ]; then
+            echo "RESULT= ($found/$total detections)" >> "$GITHUB_ENV"
+          fi
+          echo "Result: $found/$total"
+
+      - name: Write to release
+        run: |
+          gh release view "$TAG" --json body --jq .body > body.md
+          # Replace an earlier block, so running it twice does not add it twice.
+          sed -i '/^\*\*SHA-256:\*\*/,$d' body.md
+          sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' body.md
+          {
+            echo
+            echo "**SHA-256:** \`$SHA\`"
+            echo "**VirusTotal:** [scan result](https://www.virustotal.com/gui/file/$SHA)${RESULT}"
+          } >> body.md
+          gh release edit "$TAG" --notes-file body.md
+          cat body.md
