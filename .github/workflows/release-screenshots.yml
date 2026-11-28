@@ -66,7 +66,7 @@ jobs:
         working-directory: app
         run: bash ./gradlew :app:testReleaseUnitTest --tests '*WebsiteScreenshots*'
 
-      - name: Convert to WebP (540 px wide) into img/de and img/en
+      - name: Convert to WebP (540 px wide plus full size @2x) into img/de and img/en
         run: |
           pip install --quiet pillow
           python3 - <<'PY'
@@ -79,10 +79,12 @@ jobs:
           for png in pngs:
               out = Path("site/img") / png.parent.name / (png.stem + ".webp")
               out.parent.mkdir(parents=True, exist_ok=True)
-              im = Image.open(png).convert("RGB")
-              im = im.resize((540, round(im.height * 540 / im.width)), Image.LANCZOS)
-              im.save(out, "WEBP", quality=82, method=6)
-              print(out, im.size)
+              full = Image.open(png).convert("RGB")
+              # Small one for the gallery, full size (@2x) for the enlarged view.
+              small = full.resize((540, round(full.height * 540 / full.width)), Image.LANCZOS)
+              small.save(out, "WEBP", quality=82, method=6)
+              full.save(out.with_name(png.stem + "@2x.webp"), "WEBP", quality=80, method=6)
+              print(out, small.size, full.size)
           PY
 
       - name: Open pull request
