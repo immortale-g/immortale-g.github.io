@@ -1,0 +1,102 @@
+# Renders fresh app screenshots (German and English) for the website on every release and opens a
+# pull request with them. Nothing changes on the site until that PR is merged.
+#
+# Runs automatically when a release is published. Start it by hand with
+# Actions -> "Release screenshots" -> Run workflow (optionally with a branch of the app repository).
+#
+# Needs the repository secret SCREENSHOTS_TOKEN: a fine-grained GitHub token with access to
+# immortale-g/refinery-tracker and immortale-g/immortale-g.github.io and the permissions
+# "Contents: Read and write" and "Pull requests: Read and write". The app repository is private,
+# so the normal workflow token cannot read it.
+name: Release screenshots
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        description: "Branch or tag of refinery-tracker"
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.app_ref || 'main' }}
+    steps:
+      - name: Check token
+        env:
+          TOKEN: ${{ secrets.SCREENSHOTS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Repository secret SCREENSHOTS_TOKEN is missing (see the comment at the top of this workflow)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          path: site
+          token: ${{ secrets.SCREENSHOTS_TOKEN }}
+
+      - uses: actions/checkout@v5
+        with:
+          repository: immortale-g/refinery-tracker
+          ref: ${{ inputs.app_ref || 'main' }}
+          path: app
+          token: ${{ secrets.SCREENSHOTS_TOKEN }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Android platform
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37" | tail -n 3
+
+      - name: Render
+        working-directory: app
+        run: bash ./gradlew :app:testReleaseUnitTest --tests '*WebsiteScreenshots*'
+
+      - name: Convert to WebP (540 px wide) into img/de and img/en
+        run: |
+          pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          src = Path("app/app/build/website-screenshots")
+          pngs = sorted(src.glob("*/*.png"))
+          if not pngs:
+              raise SystemExit("No screenshots were rendered")
+          for png in pngs:
+              out = Path("site/img") / png.parent.name / (png.stem + ".webp")
+              out.parent.mkdir(parents=True, exist_ok=True)
+              im = Image.open(png).convert("RGB")
+              im = im.resize((540, round(im.height * 540 / im.width)), Image.LANCZOS)
+              im.save(out, "WEBP", quality=82, method=6)
+              print(out, im.size)
+          PY
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: site
+          token: ${{ secrets.SCREENSHOTS_TOKEN }}
+          branch: screenshots/update
+          delete-branch: true
+          add-paths: img/
+          commit-message: "Screenshots für ${{ env.TAG }} aktualisieren"
+          title: "Screenshots für ${{ env.TAG }} aktualisieren"
+          body: |
+            Neu gerenderte App-Screenshots (Deutsch und Englisch) für **${{ env.TAG }}**, automatisch erzeugt von der Action „Release screenshots“.
+
+            Bitte im Tab **Files changed** ansehen und mergen, wenn sie passen. Sind die Bilder unverändert, wird kein PR geöffnet.
+          assignees: immortale-g
